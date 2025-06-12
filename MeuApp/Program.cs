@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 
 class Medico
 {
@@ -27,7 +26,7 @@ class Program
 {
     static List<Medico> medicos = new();
     static List<Paciente> pacientes = new();
-    static List<Consulta> consultas = new();
+    static Dictionary<DateTime, List<Consulta>> consultasPorData = new();
 
     static void Main()
     {
@@ -109,30 +108,38 @@ class Program
         Console.Write("Data da consulta (dd/mm/aaaa hh:mm): ");
         DateTime data = DateTime.Parse(Console.ReadLine());
 
-        consultas.Add(new Consulta
+        Consulta novaConsulta = new Consulta
         {
             Medico = medicos[indexMedico],
             Paciente = pacientes[indexPaciente],
             Data = data
-        });
+        };
 
+        DateTime chave = data.Date;
+        if (!consultasPorData.ContainsKey(chave))
+            consultasPorData[chave] = new List<Consulta>();
+
+        consultasPorData[chave].Add(novaConsulta);
         Console.WriteLine("Consulta agendada com sucesso!");
     }
 
     static void ListarConsultas()
     {
-        if (consultas.Count == 0)
+        if (consultasPorData.Count == 0)
         {
             Console.WriteLine("Nenhuma consulta agendada.");
             return;
         }
 
-        foreach (var c in consultas)
+        foreach (var dia in consultasPorData)
         {
-            Console.WriteLine($"Consulta em {c.Data:dd/MM/yyyy HH:mm}");
-            Console.WriteLine($"Médico: {c.Medico.Nome} ({c.Medico.Especialidade})");
-            Console.WriteLine($"Paciente: {c.Paciente.Nome}");
-            Console.WriteLine("-------------------------------------");
+            foreach (var c in dia.Value)
+            {
+                Console.WriteLine($"Consulta em {c.Data:dd/MM/yyyy HH:mm}");
+                Console.WriteLine($"Médico: {c.Medico.Nome} ({c.Medico.Especialidade})");
+                Console.WriteLine($"Paciente: {c.Paciente.Nome}");
+                Console.WriteLine("-------------------------------------");
+            }
         }
     }
 
@@ -141,26 +148,29 @@ class Program
         Console.Write("Buscar por (1-Médico | 2-Paciente | 3-Data): ");
         string op = Console.ReadLine();
 
-        IEnumerable<Consulta> resultados = new List<Consulta>();
+        List<Consulta> resultados = new();
 
         switch (op)
         {
             case "1":
                 Console.Write("Nome do médico: ");
                 string nomeMed = Console.ReadLine().ToLower();
-                resultados = consultas.Where(c => c.Medico.Nome.ToLower().Contains(nomeMed));
+                foreach (var lista in consultasPorData.Values)
+                    resultados.AddRange(lista.FindAll(c => c.Medico.Nome.ToLower().Contains(nomeMed)));
                 break;
 
             case "2":
                 Console.Write("Nome do paciente: ");
                 string nomePac = Console.ReadLine().ToLower();
-                resultados = consultas.Where(c => c.Paciente.Nome.ToLower().Contains(nomePac));
+                foreach (var lista in consultasPorData.Values)
+                    resultados.AddRange(lista.FindAll(c => c.Paciente.Nome.ToLower().Contains(nomePac)));
                 break;
 
             case "3":
                 Console.Write("Data da consulta (dd/mm/aaaa): ");
-                DateTime data = DateTime.Parse(Console.ReadLine());
-                resultados = consultas.Where(c => c.Data.Date == data.Date);
+                DateTime data = DateTime.Parse(Console.ReadLine()).Date;
+                if (consultasPorData.ContainsKey(data))
+                    resultados.AddRange(consultasPorData[data]);
                 break;
 
             default:
@@ -168,12 +178,15 @@ class Program
                 return;
         }
 
+        if (resultados.Count == 0)
+        {
+            Console.WriteLine("Nenhuma consulta encontrada.");
+            return;
+        }
+
         foreach (var c in resultados)
         {
             Console.WriteLine($"Consulta: {c.Data:dd/MM/yyyy HH:mm} - Dr(a). '{c.Medico.Nome}' com paciente '{c.Paciente.Nome}'");
         }
-
-        if (!resultados.Any())
-            Console.WriteLine("Nenhuma consulta encontrada.");
     }
 }
